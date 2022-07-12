@@ -1,0 +1,10 @@
+# GMT 5 Session common arguments shelf
+BEGIN GMT 5.2.1
+B	0.2f0.1:V/Vs:/1f0.1:Normalized acceleration:WSne
+J	X
+JX	X4i
+R	0.0/1/-4/4
+X	6i
+Y	-3i
+L	21
+END

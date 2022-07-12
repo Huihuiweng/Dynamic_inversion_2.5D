@@ -1,7 +1,7 @@
 #!/bin/bash
 ulimit -s unlimited
 
-model="sine0.5"
+model="cosine0.5"
 
 L_left=-10
 L_right=110

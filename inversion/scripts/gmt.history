@@ -1,0 +1,10 @@
+# GMT 5 Session common arguments shelf
+BEGIN GMT 5.2.1
+B	50f10/2f1:.Misfit of Slip:WSne
+J	X
+JX	X4i/2il
+R	0/167/0.001/1
+X	5.5i
+Y	-3i
+L	376
+END

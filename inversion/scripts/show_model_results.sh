@@ -116,7 +116,7 @@ vr_upper=`gmtinfo data/vr-temp.dat -C | gawk '{print $4+0.05}'`
 vr_bound=`gmtinfo data/vr-temp.dat -C | gawk '{print $4-$3}'`
 psbasemap -R0/${pre_num}/-0.5/0.5 -JX4i/2i -B5f1/0.1f0.1:."vr":WSne  -O -K -X5.5i -P >> ps/${model}-${ave_len}-dynamic_results.eps
 gawk 'BEGIN{print 0,0,"\n",'"$pre_num"',0}' | psxy -R -J -O -K -Wthin -P >> ps/${model}-${ave_len}-dynamic_results.eps
-gawk '{print $1,($2**2-'"$vr0"'**2)/'"$vr0"'**2}' data/vr-temp.dat | psxy -R -J -O -K -Sc0.08i -Gred -Wthin -P >> ps/${model}-${ave_len}-dynamic_results.eps
+gawk '{print $1,($2**2-'"$vr0"'**2)}' data/vr-temp.dat | psxy -R -J -O -K -Sc0.08i -Gred -Wthin -P >> ps/${model}-${ave_len}-dynamic_results.eps
 
 
 ####   vr Gc slope

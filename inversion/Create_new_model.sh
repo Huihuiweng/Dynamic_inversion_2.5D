@@ -2,10 +2,10 @@
 ulimit -s unlimited
 
 path="/u/moana/user/weng/Weng/2.5D_dynamic_inversion/inversion/"
-model="sine5"
+model="cosine0.5"
 Start=1
 End=200
-ave_len=0.25
+ave_len=0.1
 
 ########    Running parameter
 L_left=-10
@@ -17,7 +17,7 @@ Vs=3330.0
 Rho=2705.0
 TotalT=100
 mu=30e9
-lamda=2
+lamda=4
 grid=0.5
 vnuc=0.1
 lnuc=30e3

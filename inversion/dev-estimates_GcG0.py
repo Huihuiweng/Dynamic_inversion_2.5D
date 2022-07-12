@@ -128,10 +128,9 @@ def dynamic_time_warping(slip,STF,X0,T0):
     vr    = np.zeros((X_num))
     RupT  = np.zeros((X_num))
 
-    Archoring_X     = int(np.where(abs(X-X0)<0.0001)[0])
+    Archoring_X     = int(np.where(X==X0)[0])
     Archoring_T     = np.where(T<=T0)[0][-1]
     vr[Archoring_X] = dM0[Archoring_T] / D[Archoring_X]
-    RupT[Archoring_X] = T[Archoring_T]
 
     ###  Forward 
     temp_t   = T[Archoring_T]
@@ -153,7 +152,7 @@ def dynamic_time_warping(slip,STF,X0,T0):
         if(vr[i]==0.0): break
         dt        = grid_size / vr[i]
         temp_t    = temp_t - dt
-        RupT[i-1] = temp_t
+        RupT[i+1] = temp_t
         for t in range(Archoring_T,1,-1):
             if(temp_t>=T[t-1] and temp_t<T[t]):
                 new_dM0 = dM0[t] - (dM0[t]-dM0[t-1])*(T[t]-temp_t)/(T[t]-T[t-1])
@@ -187,6 +186,22 @@ def interpolation(value,W,P_num):
         value_s[i*bin_p:(i+1)*bin_p] = value[i]
     value_s[P_num-1] = value_s[P_num-2]
     return value_s
+
+def archor_point(X0,slip,STF):
+    X    = slip[:,0]
+    D    = slip[:,1]
+    T    = STF[:,0]
+    dM0  = STF[:,1]
+    M0   = STF[:,2] / STF[-1,2]
+
+    critical_X  = int(np.where(X==X0*0.6)[0])    # The released slip is set as 60%
+    slip_ratio  = np.sum(D[0:critical_X]) / np.sum(D)
+    for t in range(M0.shape[0]):
+        if(M0[t]<=slip_ratio and M0[t+1]>slip_ratio):
+             T0 = T[t]
+             break
+    return T0
+
 
 def ave_bins(value,W,bin_p):
     P_num   = value.shape[0]
@@ -225,7 +240,7 @@ def slip2tau(X,D,W,mu):
     Dtau[np.where(Dtau>4e6)] = 4e6   ###  Limit the untrue maximum stress drop
     return Dtau
 
-def Adjust_gc(vr2_0,vr2_1,vr_ite,g0,ave_len,win_old,amp_old,nuc_bin,trapped,Accuracy):
+def Adjust_gc(vr2_0,vr2_1,vr_ite,g0,ave_len,win_old,amp_old,trapped,Accuracy):
     A           =  1
     gamma       =  1/np.pi
     Jacobian    =  2*A*ave_len/gamma
@@ -235,11 +250,11 @@ def Adjust_gc(vr2_0,vr2_1,vr_ite,g0,ave_len,win_old,amp_old,nuc_bin,trapped,Accu
     ##  Convergence condition
     fitting =  abs(vr2_1**2-vr2_0**2)
 
-    if(len(np.where(fitting[win_old::]>Accuracy*vr2_0[win_old::])[0])==0): ## Finish
+    if(len(np.where(fitting[win_old::]>Accuracy)[0])==0): ## Finish
          return 0.0,fitting.shape[0]-1,0.0
 
-    if(fitting[win_old]<=Accuracy*vr2_0[win_old]):
-        win_new  =  win_old + np.where(fitting[win_old::]>Accuracy*vr2_0[win_old::])[0][0]
+    if(fitting[win_old]<=Accuracy):
+        win_new  =  win_old + np.where(fitting[win_old::]>Accuracy)[0][0]
         if(vr_ite[win_new-1]>=1):  # To avoid the numerical error of vr>1
             amp_new = 50.0
         else:
@@ -251,16 +266,13 @@ def Adjust_gc(vr2_0,vr2_1,vr_ite,g0,ave_len,win_old,amp_old,nuc_bin,trapped,Accu
         else:
            amp_new  =  amp_old
 
-    if(win_new==nuc_bin): # For the search of the nucleation zone (<W)
-        amp_new = 1 / vr2_0[win_new]
-
-#    if(vr_ite[min(win_new+1,vr_ite.shape[0])]<0.1 and vr2_1[win_new]>vr2_0[win_new]):  # If the rupture arrests at the next bin and vr2_1 is still vr2_0, skip this bin
-#        win_new  =  win_new + 1
-#        amp_new  =  1.0
+    if(vr_ite[min(win_new+1,vr_ite.shape[0])]<0.1 and vr2_1[win_new]>vr2_0[win_new]):  # If the rupture arrests at the next bin and vr2_1 is still vr2_0, skip this bin
+        win_new  =  win_new + 1
+        amp_new  =  1.0
 
     update       =  (vr2_1**2-vr2_0**2)/Jacobian * step_length * amp_new
     Delta_gc     =  update[win_new]*g0[win_new]
-    if(abs(Delta_gc)/g0[win_new]>0.2):
+    if(abs(Delta_gc)/g0[win_new]>0.1):
         amp_new  =  amp_new  / float(int(abs(Delta_gc)/g0[win_new]/0.1)+1)
         Delta_gc =  Delta_gc / float(int(abs(Delta_gc)/g0[win_new]/0.1)+1)
 
@@ -287,9 +299,9 @@ def set_para(model,iteration,W,Vs,ave_len,lamda,debug):
     update_cutoff  = 0.005
     min_excess     = 0.1
     mu             = 30e9
-    dry_run        = 8        # The times of dry run for a better initial stress drop
-    start_point    = 1.0*W    # For a reference point
-    gc_init        = 1.3e6
+    dry_run        = 2        # The times of dry run for a better initial stress drop
+    X0             = W/1e3    # For a reference point
+    gc_init        = 1.5e6
 
     ###  Read the input of STF and slip model
     slip_0 = read_slip(model,ave_len,0)
@@ -302,7 +314,6 @@ def set_para(model,iteration,W,Vs,ave_len,lamda,debug):
     DeltaX = (X[1]-X[0])*1e3
     bin_p  = int(ave_len*W/DeltaX)
     bin_n  = int(P_num/bin_p)
-    nuc_bin= int((start_point/W)/ave_len)-1
     
     ###  The initial guesses of Dtau and Gc 
     Dtau_0 = slip2tau(X,D_0,W,mu)
@@ -315,7 +326,7 @@ def set_para(model,iteration,W,Vs,ave_len,lamda,debug):
         vr2_0   = np.zeros((bin_n))
         Vr_0    = np.zeros((P_num))
         RupT_0  = np.zeros((P_num))
-        win     = np.array([nuc_bin])
+        win     = np.array([0])
         amp     = np.array([1.0])
         vr2     = np.reshape(vr2_0, (bin_n,1))
         gc      = np.reshape(gc_0,  (bin_n,1))
@@ -336,8 +347,8 @@ def set_para(model,iteration,W,Vs,ave_len,lamda,debug):
         slip_1   = read_slip(model,ave_len,iteration-1)
         STF_1    = read_STF(model,ave_len,iteration-1)
 
-        X0          = (win[iteration-2]+1)*ave_len*W/1e3
-        T0          = slip_1[int(np.where(abs(X-X0)<0.0001)[0]),2]
+        T0          = slip_1[int(np.where(X==X0)[0]),2]
+        print(T0)
         Vr_0,RupT_0 = dynamic_time_warping(slip_0,STF_0,X0,T0)
         Vr_1,RupT_1 = dynamic_time_warping(slip_0,STF_1,X0,T0)
         Vr_0     = Vr_0 / Vs
@@ -346,7 +357,11 @@ def set_para(model,iteration,W,Vs,ave_len,lamda,debug):
         vr_ite   = ave_bins(slip_1[:,3]/Vs,W,bin_p)
         rup_stop = np.where(vr_ite>0.001)[0][-1]<bin_n-1   # when the rupture stop in the middle of fault
 
-        offset   = 0.0
+        if(win[iteration-2]<=int(1/ave_len)):  # There is no need to adjust within the nucleation zone
+            offset = 0.0
+        else:
+            offset = RupT_syn[bin_p*(win[iteration-2]-1)]-RupT_1[bin_p*(win[iteration-2]-1)]
+            if(offset<0): offset = 0.0
         vr2_0    = checkpoints(Vr_0,bin_p,win[iteration-2],offset,DeltaX,Vs) 
         vr2_1    = checkpoints(Vr_1,bin_p,win[iteration-2],offset,DeltaX,Vs)
         vr2[win[iteration-2]::,0] = vr2_0[win[iteration-2]::]
@@ -365,15 +380,13 @@ def set_para(model,iteration,W,Vs,ave_len,lamda,debug):
                 trapped = True
             else:
                 trapped = False
-        delta_gc,win_new,amp_new = Adjust_gc(vr2_0,vr2_1,vr_ite,g0_0,ave_len,win[iteration-2],amp[iteration-2],nuc_bin,trapped,update_cutoff)
+        delta_gc,win_new,amp_new = Adjust_gc(vr2_0,vr2_1,vr_ite,g0_0,ave_len,win[iteration-2],amp[iteration-2],trapped,update_cutoff)
         adj_gc                   = np.copy(gc_1)
-        if(iteration<=dry_run):
+        if(iteration>dry_run):
+            adj_gc[win_new::]    = adj_gc[win_new::] + delta_gc    # Keep all the last bins the same as the sliding one
+        else:
             win_new              = win[iteration-2]
             amp_new              = amp[iteration-2]
-        elif(iteration>dry_run and win_new<=nuc_bin):
-            adj_gc               = adj_gc + delta_gc
-        else:
-            adj_gc[win_new::]    = adj_gc[win_new::] + delta_gc    # Keep all the last bins the same as the sliding one
         Adj_Gc                   = interpolation(adj_gc,W,P_num)
         Adj_Gc                   = check_str_excess(Adj_Dtau,Adj_Gc,mu,lamda,min_excess)
 
@@ -395,7 +408,7 @@ def set_para(model,iteration,W,Vs,ave_len,lamda,debug):
                             '{:.8f}'.format(vr_ite[i]),'{:.8f}'.format((adj_gc[i]-gc_1[i])/1e6),\
                             '{:.4f}'.format((adj_dtau[i]-dtau[i])/adj_dtau[i]))
             print(amp_new)
-            print(X0,T0)
+            print(offset)
         else:
             if(win.shape[0]>iteration-1):
                 win = win[0:iteration-1]

@@ -23,7 +23,7 @@ fi
 psbasemap -R0/100/0/1 -JX4i/2i -B50f10/0.2f0.1:."vr/vs":WSne  -K -Y25i -P > ps/${model}-forward_results.eps
 gawk '{print $1,$3/3330.0}' data/${model}-along_strike_values.dat | psxy -R -J -O -K -Wthickest,red -P >> ps/${model}-forward_results.eps
 
-psbasemap -R0/100/0/1e19 -JX4i/2i -B50f10/1e18f1e18:."STF":WSne  -O -K -Y-3i -P >> ps/${model}-forward_results.eps
+psbasemap -R0/120/0/1e19 -JX4i/2i -B50f10/1e18f1e18:."STF":WSne  -O -K -Y-3i -P >> ps/${model}-forward_results.eps
 gawk '{print $1,$2*20e3*30e9}' data/${model}-STF.dat | psxy -R -J -O -K -Wthickest,red -P >> ps/${model}-forward_results.eps
 
 psbasemap -R0/100/0/3 -JX4i/2i -B50f10/1f1:."Slip (m)":WSne  -O -K -Y-3i -P >> ps/${model}-forward_results.eps
